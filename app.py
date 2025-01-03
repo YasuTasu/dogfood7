@@ -122,7 +122,7 @@ def suggest_ingredients_for_deficiencies(deficiencies, excesses):
                 [item.food_code for item in Ingredient.query if item.food_code in excesses]
             ))
             .order_by(getattr(Ingredient, nutrient).desc())
-            .limit(10)
+            .limit(15)
             .all()
         )
         suggestions[nutrient] = [
