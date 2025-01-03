@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ペットフード作成支援ツール</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #FFEDD5;
+            color: #5C4033;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            color: #FF6F61;
+            margin-top: 20px;
+        }
+        .container {
+            margin-top: 50px;
+            display: flex;
+            gap: 20px;
+        }
+        .left-column, .right-column {
+            flex: 1;
+            background: #FFF8E7;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            height: 80vh;
+        }
+        .ingredient-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #FFE4C4;
+            border-radius: 10px;
+            margin-bottom: 5px;
+            cursor: pointer;
+        }
+        .ingredient-item:hover {
+            background: #FFD1A1;
+        }
+        .ingredient-item.selected {
+            background: #FFB997;
+            border: 2px solid #FF7043;
+        }
+        .selected-ingredient {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #FFFAF0;
+            border: 2px solid #FFB997;
+            border-radius: 10px;
+            position: relative;
+        }
+        .input-grams {
+            width: 80px;
+            text-align: right;
+            position: absolute;
+            right: 50px;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: #FF7043;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.2rem;
+        }
+        .submit-btn:disabled {
+            background-color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>ペットフード作成支援ツール</h1>
+    <div class="container">
+        <!-- 左側（食材リスト） -->
+        <div class="left-column">
+            <h2>食材リスト</h2>
+            <input type="text" id="ingredient-search" class="form-control mb-3" placeholder="食材名または食品番号を検索...">
+            <div id="ingredient-list">
+                {% for ingredient in ingredients %}
+                <div class="ingredient-item" data-id="{{ ingredient.food_code }}" data-name="{{ ingredient.name }}">
+                    <span>{{ ingredient.food_code }} - {{ ingredient.name }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 右側（選択済みリスト） -->
+        <div class="right-column">
+            <h2>選択された食材</h2>
+            <div id="selected-ingredients"></div>
+            <button type="button" class="submit-btn" id="calculate-btn" disabled>計算する</button>
+        </div>
+    </div>
+
+    <script>
+        const ingredientItems = document.querySelectorAll('.ingredient-item');
+        const searchBox = document.getElementById('ingredient-search');
+        const selectedIngredientsDiv = document.getElementById('selected-ingredients');
+        const calculateBtn = document.getElementById('calculate-btn');
+
+        const selectedData = {};
+
+        // 検索機能
+        searchBox.addEventListener('input', () => {
+            const query = searchBox.value.toLowerCase();
+            ingredientItems.forEach(item => {
+                const name = item.getAttribute('data-name').toLowerCase();
+                const id = item.getAttribute('data-id');
+                item.style.display = (name.includes(query) || id.includes(query)) ? 'flex' : 'none';
+            });
+        });
+
+        // 食材追加・削除
+        ingredientItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const id = item.getAttribute('data-id');
+                const name = item.getAttribute('data-name');
+                if (item.classList.contains('selected')) {
+                    removeFromSelected(id);
+                } else {
+                    addToSelected(item, id, name);
+                }
+            });
+        });
+
+        function addToSelected(item, id, name) {
+            if (selectedData[id]) return;
+
+            selectedData[id] = ""; // 空白で初期化
+
+            const div = document.createElement('div');
+            div.className = 'selected-ingredient';
+            div.setAttribute('data-id', id);
+            div.innerHTML = `
+                <span>${name} (${id})</span>
+                <input type="number" class="input-grams" placeholder="グラム" step="0.1" min="0.1">
+                <button type="button" class="btn btn-sm btn-danger" onclick="removeFromSelected('${id}')">×</button>
+            `;
+
+            const input = div.querySelector('.input-grams');
+            input.addEventListener('input', (e) => {
+                selectedData[id] = parseFloat(e.target.value) || null;
+                updateCalculateButton();
+            });
+
+            // Enterキーで次の入力欄に移動
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    moveToNextInput(e.target);
+                }
+            });
+
+            selectedIngredientsDiv.appendChild(div);
+            item.classList.add('selected');
+            updateCalculateButton();
+        }
+
+        function removeFromSelected(id) {
+            delete selectedData[id];
+            document.querySelector(`.ingredient-item[data-id="${id}"]`).classList.remove('selected');
+            document.querySelector(`.selected-ingredient[data-id="${id}"]`).remove();
+            updateCalculateButton();
+        }
+
+        function updateCalculateButton() {
+            const allFilled = Object.values(selectedData).every(value => value && value >= 0.1);
+            calculateBtn.disabled = !allFilled;
+        }
+
+        function moveToNextInput(currentInput) {
+            const inputs = Array.from(document.querySelectorAll('.input-grams'));
+            const currentIndex = inputs.indexOf(currentInput);
+            if (currentIndex >= 0 && currentIndex < inputs.length - 1) {
+                inputs[currentIndex + 1].focus();
+            }
+        }
+
+        calculateBtn.addEventListener('click', () => {
+            const payload = Object.keys(selectedData).map(id => ({
+                food_code: id,
+                grams: selectedData[id]
+            }));
+            fetch('/calculate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ selected_list: payload })
+            })
+            .then(response => response.text())
+            .then(html => {
+                document.open();
+                document.write(html);
+                document.close();
+            })
+            .catch(error => console.error('送信エラー:', error));
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>栄養素計算結果</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #ffe4c1;
+            color: #333;
+        }
+        .container {
+            margin-top: 30px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+        h1, h3 {
+            color: #d35400;
+        }
+        .table-container {
+            position: relative;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+        }
+        table {
+            border-collapse: collapse;
+            width: auto;
+            white-space: nowrap;
+        }
+        table th, table td {
+            padding: 8px 12px;
+            text-align: center;
+            border: 1px solid #ddd;
+            min-width: 80px;
+        }
+        table th {
+            background-color: #f5c089;
+            color: #fff;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .fixed-left {
+            position: sticky;
+            left: 0;
+            background-color: #f5c089;
+            z-index: 11;
+        }
+        .table-danger {
+            background-color: #ffdddd !important;
+        }
+        .table-warning {
+            background-color: #ffeeba !important;
+        }
+        /* 判定結果に応じた背景色 */
+        .match {
+            background-color: #d4edda; /* 緑色 (適合) */
+            color: #155724; /* 緑色の文字 */
+        }
+
+        .excess {
+            background-color: #fff3cd; /* 黄色 (過剰) */
+           color: #856404; /* 黄色の文字 */
+        }
+
+        .deficiency {
+            background-color: #f8d7da; /* 赤色 (不足) */
+            color: #721c24; /* 赤色の文字 */
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>栄養素計算結果</h1>
+
+        <!-- 選択した食材とグラム数 -->
+        <h3>選択した食材とグラム数</h3>
+        {% if selected_list %}
+        <ul>
+            {% for food_code, grams, name in selected_list %}
+            <li><strong>{{ name }}</strong>: {{ grams }}g (食品番号: {{ food_code }})</li>
+            {% endfor %}
+        </ul>
+        <p><strong>合計グラム数:</strong> {{ total_grams | round(2) }}g</p>
+        {% else %}
+        <p>選択された食材がありません。</p>
+        {% endif %}
+
+        <!-- 栄養素別の合計値 -->
+        <h3>栄養素別の合計値</h3>
+        <div class="table-container">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th class="fixed-left">項目</th>
+                        {% for nutrient, _ in totals.items() %}
+                            <th>{{ nutrient_labels[nutrient][0] if nutrient in nutrient_labels else nutrient }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 合計値 -->
+                    <tr>
+                        <th class="fixed-left">合計値</th>
+                        {% for nutrient, total in totals.items() %}
+                            <td>
+                                {{ total | round(2) }}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    
+                    <!-- 成犬用基準値 -->
+                    <tr>
+                        <th class="fixed-left">成犬用基準値</th>
+                        {% for nutrient, standard in aafco_standards['adult_dog'].items() %}
+                            <td>
+                                {% if standard.maximum %}
+                                    {{ standard.minimum | round(4) }} 〜 {{ standard.maximum | round(2) }}
+                                {% else %}
+                                    {{ standard.minimum | round(4) }} 以上
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    
+                    <!-- 成犬用判定 -->
+                    <tr>
+                        <th class="fixed-left">成犬用判定</th>
+                        {% for nutrient, total in totals.items() %}
+                            <td class="{% if total < aafco_standards['adult_dog'][nutrient]['minimum'] %}deficiency{% elif aafco_standards['adult_dog'][nutrient]['maximum'] and total > aafco_standards['adult_dog'][nutrient]['maximum'] %}excess{% else %}match{% endif %}">
+                                {% if total < aafco_standards['adult_dog'][nutrient]['minimum'] %}
+                                    ✖ 不足
+                               {% elif aafco_standards['adult_dog'][nutrient]['maximum'] and total > aafco_standards['adult_dog'][nutrient]['maximum'] %}
+                                    ✖ 過剰
+                                {% else %}
+                                    ✔ 適合
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+
+                    
+                    <!-- 幼犬用基準値 -->
+                    <tr>
+                        <th class="fixed-left">幼犬用基準値</th>
+                        {% for nutrient, standard in aafco_standards['puppy'].items() %}
+                            <td>
+                                {% if standard.maximum %}
+                                    {{ standard.minimum | round(4) }} 〜 {{ standard.maximum | round(2) }}
+                                {% else %}
+                                    {{ standard.minimum | round(4) }} 以上
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+
+                    <!-- 幼犬用判定 -->
+                    <tr>
+                        <th class="fixed-left">幼犬用判定</th>
+                        {% for nutrient, total in totals.items() %}
+                            <td class="{% if total < aafco_standards['puppy'][nutrient]['minimum'] %}deficiency{% elif aafco_standards['puppy'][nutrient]['maximum'] and total > aafco_standards['puppy'][nutrient]['maximum'] %}excess{% else %}match{% endif %}">
+                                {% if total < aafco_standards['puppy'][nutrient]['minimum'] %}
+                                    ✖ 不足
+                                {% elif aafco_standards['puppy'][nutrient]['maximum'] and total > aafco_standards['puppy'][nutrient]['maximum'] %}
+                                    ✖ 過剰
+                                {% else %}
+                                    ✔ 適合
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 調整画面への移動ボタン -->
+        <div class="text-center mt-4">
+            <input type="hidden" id="selected-list-hidden" value='{{ selected_list | default([]) | tojson | safe }}'>
+            <input type="hidden" id="deficiencies-hidden" value='{{ deficiencies | default([]) | tojson | safe }}'>
+            <input type="hidden" id="suggestions-hidden" value='{{ suggestions | default({}) | tojson | safe }}'>
+            <button type="button" class="btn btn-primary" onclick="submitAdjustForm()">不足栄養素を補う</button>
+        </div>
+        
+        <!-- 提案食材 -->
+        <h3>不足している栄養素を補う食材（上位100件ずつ表示）</h3>
+        {% if suggestions %}
+        <ul>
+            {% for nutrient, items in suggestions.items() %}
+            <li>
+                <strong>{{ nutrient_labels[nutrient][0] }}:</strong>
+                <ul>
+                    {% for item in items %}
+                    <li>
+                        {{ item.name }} (食品番号: {{ item.food_code }}) - 
+                        {{ item.value | round(2) }} {{ nutrient_labels[nutrient][1] }} / 100g
+                    </li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-success">すべての栄養素が適合しています！</p>
+        {% endif %}
+
+        <h3>不足栄養素を効率的に補える食材</h3>
+        {% if best_suggestions %}
+        <ul>
+            {% for suggestion in best_suggestions %}
+                <li>
+                    <strong>{{ suggestion.name }} (食品番号: {{ suggestion.food_code }})</strong> - 
+                    スコア: {{ suggestion.score }}<br>
+                    補える栄養素: {{ suggestion.covered_nutrients | join(', ') }}
+                </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>この機能は準備中です</p>
+        {% endif %}
+
+        <!-- 調整画面への移動ボタン -->
+        <div class="text-center mt-4">
+            <input type="hidden" id="selected-list-hidden" value='{{ selected_list | default([]) | tojson | safe }}'>
+            <input type="hidden" id="deficiencies-hidden" value='{{ deficiencies | default([]) | tojson | safe }}'>
+            <input type="hidden" id="excesses-hidden" value='{{ excesses | default([]) | tojson | safe }}'>
+            <input type="hidden" id="suggestions-hidden" value='{{ suggestions | default({}) | tojson | safe }}'>
+            <button type="button" class="btn btn-primary" onclick="submitAdjustForm()">不足栄養素を補う</button>
+        </div>
+
+        <a href="/" class="btn btn-primary mt-3">戻る</a>
+    </div>
+
+    <script>
+        function submitAdjustForm() {
+            const selectedList = document.getElementById('selected-list-hidden').value;
+            const deficiencies = document.getElementById('deficiencies-hidden').value;
+            const excesses = document.getElementById('excesses-hidden').value;
+            const suggestions = document.getElementById('suggestions-hidden').value;
+
+            sessionStorage.setItem('selected_list', selectedList);
+            sessionStorage.setItem('deficiencies', deficiencies);
+            sessionStorage.setItem('excesses', excesses);
+            sessionStorage.setItem('suggestions', suggestions);
+
+            window.location.href = '/adjust';
+        }
+    </script>
+</body>
+</html>

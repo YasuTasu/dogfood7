@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ja">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>食材調整</title>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+        <style>
+            /* 全体のスタイル設定 */
+            body {
+                background-color: #fefae0; /* index.html に合わせた背景色 */
+                color: #333;
+            }
+            .container {
+                margin-top: 20px;
+            }
+            .section {
+                margin-bottom: 20px;
+            }
+        
+            .cell-danger {
+                background-color: #f8d7da; /* 赤: 不足 */
+            }
+            .cell-warning {
+                background-color: #fff3cd; /* 黄色: 過剰 */
+            }
+            .cell-success {
+                background-color: #d4edda; /* 緑: 適合 */
+            }
+
+            .fixed-header {
+                position: sticky; /* スクロールしても位置を維持 */
+                top: 0; /* 上部に固定 */
+                z-index: 1000; /* 他の要素より前面に表示 */
+                max-width: 100%;
+                padding: 10px;
+                background-color: #ffffff; /* 背景色を設定 */
+                border-bottom: 1px solid #ddd; /* 下部に境界線を追加 */
+                box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2); /* 少し影を付けて見やすく */
+            }
+
+            /* カードデザイン */
+            .card {
+                border-radius: 10px;
+                border: 1px solid #e9c46a; /* index.html のボーダーカラー */
+                background-color: #ffffff;
+            }
+            .card-header {
+                background-color: #f4a261; /* index.html に合わせたヘッダー色 */
+                color: #ffffff;
+                font-size: 1.2rem;
+                font-weight: bold;
+            }
+
+            /* リストアイテムのデザイン */
+            .list-group-item {
+                display: flex;
+                justify-content: space-between; /* 名前とコントロールエリアを両端に配置 */
+                align-items: center; /* 垂直方向の中央揃え */
+                min-height: 50px; /* 最低限の高さを設定 */
+                padding: 10px; /* 内側の余白を統一 */
+                box-sizing: border-box; /* パディングを含めた幅計算 */
+            }
+
+            .list-group-item .item-name {
+                flex: 1; /* 名前部分が残りの幅を使う */
+                text-align: left; /* 名前を左揃え */
+                overflow: hidden; /* 長い名前がはみ出さないようにする */
+                text-overflow: ellipsis; /* はみ出た部分を省略記号で表示 */
+                white-space: nowrap; /* 名前が折り返されないように設定 */
+            }
+
+            .list-group-item .item-controls {
+                display: flex;
+                align-items: center;
+                gap: 10px; /* 入力欄、"g"、ボタン間のスペースを設定 */
+            }
+
+            /* ボタンデザイン */
+            .btn-primary {
+                background-color: #2a9d8f; /* index.html に合わせたボタン色 */
+                border: none;
+            }
+            .btn-primary:hover {
+                background-color: #21867a;
+            }
+
+            .btn-danger {
+                flex-shrink: 0; /* ボタンが縮まないように固定 */
+                width: 60px; /* 幅を固定 */
+                height: 38px; /* 入力欄と揃える高さ */
+                text-align: center; /* テキストを中央に配置 */
+                white-space: nowrap; /* テキストの改行を防止 */
+            }
+
+            .btn-danger:hover {
+                background-color: #c55c3d;
+            }
+
+
+            /* 入力フィールドのデザイン */
+            .input-grams {
+                text-align: right;
+                width: 80px; /* 入力欄の幅を固定 */
+                height: 38px; /* ボタンと揃えた高さ */
+                box-sizing: border-box; /* パディングを含めて幅を計算 */
+            }
+
+            /* テーブルのスクロール設定 */
+            .table-horizontal-scroll {
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+            .table-horizontal-scroll table {
+                display: inline-block;
+            }
+            /* 固定リストと編集リストを区別するデザイン */
+            #fixed-selected-ingredients {
+                background-color: #fafafa;
+                border: 1px solid #e9c46a;
+                border-radius: 5px;
+                padding: 10px;
+                max-height: 300px; /* スクロール可能にする場合の設定 */
+                overflow-y: auto;
+            }
+
+            #editable-selected-ingredients {
+                background-color: #ffffff;
+                border: 1px solid #e9c46a;
+                border-radius: 5px;
+                padding: 10px;
+            }
+    
+            /* スクロール可能なリスト */
+            .scrollable-list {
+                max-height: 300px;
+                overflow-y: auto;
+            }
+
+            /* タブの背景色とボーダーのスタイルを変更 */
+            .nav-tabs .nav-link {
+                background-color: #f4f4f4; /* タブの背景色 */
+                border: 1px solid #ddd; /* ボーダー */
+                color: #333; /* 文字色 */
+                border-radius: 5px; /* 角を丸くする */
+                margin-right: 5px; /* タブ間の余白 */
+                padding: 10px 15px; /* タブの内側余白 */
+            }
+    
+            /* アクティブなタブのデザイン */
+            .nav-tabs .nav-link.active {
+                background-color: #2a9d8f; /* アクティブタブの背景色 */
+                color: #fff; /* アクティブタブの文字色 */
+                border-color: #2a9d8f; /* アクティブタブのボーダー色 */
+            }
+    
+            /* ホバー時のデザイン */
+            .nav-tabs .nav-link:hover {
+                background-color: #d4edda; /* ホバー時の背景色 */
+                color: #333; /* ホバー時の文字色 */
+            }
+    
+            /* タブをモバイルフレンドリーに */
+            @media (max-width: 768px) {
+                .nav-tabs .nav-link {
+                    display: block; /* タブを縦並びにする */
+                    margin-bottom: 5px; /* 縦間隔を調整 */
+                }
+            }
+
+            .tab-pane .list-group {
+                max-height: 300px; /* 枠の高さを固定 */
+                overflow-y: auto; /* 縦スクロールを有効にする */
+            }
+
+
+    
+        </style>
+</head>
+
+<body>
+<!-- 栄養素計算結果 -->
+<div class="row section fixed-header">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">栄養素計算結果</div>
+            <div class="card-body table-horizontal-scroll">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>項目</th>
+                            {% for nutrient, label in data.nutrient_labels.items() %}
+                            <th>{{ label[0] }} ({{ label[1] }})</th> <!-- 栄養素名 -->
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 合計値の行 -->
+                        <tr>
+                            <td>合計値</td>
+                            {% for nutrient in data.nutrient_labels.keys() %}
+                            <td id="total-{{ nutrient }}">
+                                {{ data.nutrient_totals.get(nutrient, 0) | float | round(2) if data.nutrient_totals.get(nutrient, 0) is not none else 0 }}
+                            </td>
+                            {% endfor %}
+                        </tr>
+
+                        <!-- 基準値の行 -->
+                        {% for standard, standard_label in {'adult_dog': '成犬用', 'puppy': '幼犬用'}.items() %}
+                        <tr>
+                            <td>{{ standard_label }}基準値 (min - max)</td>
+                            {% for nutrient in data.nutrient_labels.keys() %}
+                            <td>
+                                {% set standard_data = data.aafco_standards.get(standard, {}) %}
+                                {% set nutrient_data = standard_data.get(nutrient, {}) %}
+                                {% set minimum = nutrient_data.get('minimum', 0) %}
+                                {% set maximum = nutrient_data.get('maximum', None) %}
+                                {{ minimum | default(0) | round(4) if minimum is number else minimum }} - 
+                                {{ maximum | default(0) | round(4) if maximum is number else "なし" }}
+                            </td>
+                            {% endfor %}
+                        </tr>
+
+                        <!-- 判定の行 -->
+                        <tr>
+                            <td>{{ standard_label }}判定</td>
+                            {% for nutrient in data.nutrient_labels.keys() %}
+                            {% set standard_data = data.aafco_standards.get(standard, {}) %}
+                            {% set nutrient_data = standard_data.get(nutrient, {}) %}
+                            {% set minimum = nutrient_data.get('minimum', 0) %}
+                            {% set maximum = nutrient_data.get('maximum', None) %}
+                            {% set total = data.nutrient_totals.get(nutrient, 0) %}
+                            <td id="status-{{ standard }}-{{ nutrient }}"
+                                class="{% if total < minimum %}cell-danger{% elif maximum is not none and total > maximum %}cell-warning{% else %}cell-success{% endif %}">
+                                {% if total < minimum %}
+                                    不足
+                                {% elif maximum is not none and total > maximum %}
+                                    過剰
+                                {% else %}
+                                    適合
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+    <div class="row section">
+        <!-- 固定された選択した食材（左側） -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">初期選択された食材</div>
+                <div class="card-body">
+                    <ul id="fixed-selected-ingredients" class="list-group">
+                        {% for item in data.selected_ingredients %}
+                        <li class="list-group-item">
+                            {{ item.food_code }} - {{ item.name }}: {{ item.grams }}g
+                            <button class="btn btn-primary btn-sm" onclick="addFixedIngredient('{{ item.food_code }}', '{{ item.name }}', {{ item.grams }})">追加</button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    
+        <!-- 編集可能な選択した食材（右側） -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">選択した食材とグラム数（編集可能）</div>
+                <div class="card-body">
+                    <ul id="editable-selected-ingredients" class="list-group">
+                        {% for item in data.selected_ingredients %}
+                        <li class="list-group-item">
+                            <span class="item-name">{{ item.food_code }} - {{ item.name }}</span>
+                            <div class="item-controls">
+                                <input type="number" class="form-control input-grams" value="{{ item.grams }}" 
+                                    step="0.1" min="0" 
+                                    onchange="updateIngredientGrams('{{ item.food_code }}', this.value)"> g
+                                <button class="btn btn-danger btn-sm" onclick="removeIngredient('{{ item.food_code }}')">削除</button>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <p class="mt-2"><strong>合計グラム数:</strong> <span id="total-grams">{{ data.total_grams | round(2) }}</span>g</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+        
+
+        <!-- 食材検索と提案食材 -->
+        <div class="row">
+            <!-- 提案食材 (左側) -->
+            <div class="col-md-6 section">
+                <div class="card">
+                    <div class="card-header">提案食材</div>
+                    <div class="card-body">
+                        <!-- タブ表示 -->
+                        <ul class="nav nav-tabs" id="suggestionTabs" role="tablist">
+                            {% for nutrient, _ in data.suggestions.items() %}
+                            <li class="nav-item">
+                                <a class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ nutrient }}" data-toggle="tab" href="#content-{{ nutrient }}" role="tab">
+                                    {{ data.nutrient_labels[nutrient][0] }}（{{ data.nutrient_labels[nutrient][1] }}）
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+
+                        <!-- タブコンテンツ -->
+                        <div class="tab-content" id="suggestionTabContent">
+                            {% for nutrient, items in data.suggestions.items() %}
+                            <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="content-{{ nutrient }}" role="tabpanel">
+                                <h5 class="mt-3">
+                                    {% if nutrient in data.deficiencies %}
+                                    不足のため提案
+                                    {% elif nutrient in data.excesses %}
+                                    過剰のため提案
+                                    {% endif %}
+                                </h5>
+                                {% if items %}
+                                <ul class="list-group">
+                                    {% for item in items %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>
+                                            <strong>{{ item.name }}</strong> ({{ item.food_code }})<br>
+                                            <small>{{ item.value | round(2) }} {{ data.nutrient_labels[nutrient][1] }} / 100g</small>
+                                        </span>
+                                        <button class="btn btn-primary btn-sm" onclick="addProposedIngredient('{{ item.food_code }}', '{{ item.name }}', 100)">追加</button>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% else %}
+                                <p>提案食材はありません。</p>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 食材検索 (右側) -->
+            <div class="col-md-6 section">
+                <div class="card">
+                    <div class="card-header">食材検索</div>
+                    <div class="card-body">
+                        <input type="text" id="search-bar" class="form-control" placeholder="食品番号または食材名を入力">
+                        <ul id="all-ingredients" class="list-group mt-3 scrollable-list"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.4.4/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    
+    <script>
+        let allIngredients = []; // 全食材リスト
+        let selectedIngredients = {{ data.selected_ingredients | tojson }};
+        const aafcoStandards = {{ data.aafco_standards | tojson }};
+    
+        // 全食材リストをロード
+        fetch('/ingredients')
+            .then(response => response.json())
+            .then(data => {
+                allIngredients = data.ingredients;
+                updateIngredientList(''); // 空文字で全リストを表示
+            })
+            .catch(error => console.error("全食材取得エラー:", error));
+    
+        // 検索バーの入力で絞り込み
+        document.getElementById('search-bar').addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            updateIngredientList(query);
+        });
+
+        document.getElementById('suggestion-search').addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            document.querySelectorAll('.list-group-item').forEach(item => {
+                const text = item.innerText.toLowerCase();
+                item.style.display = text.includes(query) ? 'flex' : 'none';
+            });
+        });
+
+        function addFixedIngredient(foodCode, name, grams) {
+            // 重複チェック
+            if (selectedIngredients.some(item => item.food_code === foodCode)) {
+                alert("この食材はすでに選択されています。");
+                return;
+            }
+            // 選択されたリストに追加
+            selectedIngredients.push({ food_code: foodCode, name: name, grams: grams });
+
+            // UIを更新
+            updateSelectedIngredientsUI();
+
+            // 栄養素を再計算
+            calculateNutrients();
+        }
+        
+        // 食材リストを更新
+        function updateIngredientList(query) {
+            const resultsList = document.getElementById('all-ingredients');
+            resultsList.innerHTML = '';
+            const filteredIngredients = allIngredients.filter(ingredient =>
+                ingredient.name.toLowerCase().includes(query) ||
+                ingredient.food_code.toString().includes(query)
+            );
+            filteredIngredients.forEach(item => {
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item';
+                listItem.innerHTML = `
+                    ${item.food_code} - ${item.name}
+                    <button class="btn btn-primary btn-sm" onclick="addProposedIngredient('${item.food_code}', '${item.name}', 100)">
+                        追加
+                    </button>`;
+                resultsList.appendChild(listItem);
+            });
+        }
+    
+        // 提案食材や検索から選択リストに追加する共通関数
+        function addProposedIngredient(foodCode, name, grams = 100) {
+            if (selectedIngredients.some(item => item.food_code === foodCode)) {
+                alert("この食材はすでに選択されています。");
+                return;
+            }
+            selectedIngredients.push({ food_code: foodCode, name: name, grams: grams });
+            updateSelectedIngredientsUI();
+            calculateNutrients();
+        }
+    
+        // 選択リストのUIを更新
+        function updateSelectedIngredientsUI() {
+            const list = document.getElementById('editable-selected-ingredients');
+            list.innerHTML = ''; // リストをクリア
+            selectedIngredients.forEach(item => {
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item';
+
+                const itemName = document.createElement('span');
+                itemName.className = 'item-name';
+                itemName.textContent = `${item.food_code} - ${item.name}`;
+                
+                const controls = document.createElement('div');
+                controls.className = 'item-controls';
+       
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'form-control input-grams';
+                input.value = item.grams;
+                input.step = '0.1';
+                input.min = '0';
+                input.onchange = () => updateIngredientGrams(item.food_code, input.value);
+
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'btn btn-danger btn-sm';
+                deleteButton.textContent = '削除';
+                deleteButton.onclick = () => removeIngredient(item.food_code);
+
+                controls.appendChild(input);
+                controls.appendChild(document.createTextNode('g'));
+                controls.appendChild(deleteButton);
+
+                listItem.appendChild(itemName);
+                listItem.appendChild(controls);
+
+                list.appendChild(listItem);
+    
+            });
+
+            updateTotalGrams(); // 合計グラム数を更新
+        }
+
+    
+        // グラム数を更新
+        function updateIngredientGrams(foodCode, grams) {
+            grams = parseFloat(grams) || 0;
+            if (grams < 0) grams = 0; // 負の値を防止
+    
+            const ingredient = selectedIngredients.find(item => item.food_code == foodCode);
+            if (ingredient) {
+                ingredient.grams = grams;
+                updateTotalGrams();
+                calculateNutrients();
+            }
+        }
+    
+        // 合計グラム数を更新する関数
+        function updateTotalGrams() {
+            const totalGrams = selectedIngredients.reduce((sum, item) => sum + item.grams, 0);
+            document.getElementById('total-grams').textContent = totalGrams.toFixed(2);
+        }
+    
+        // 栄養素を計算
+        function calculateNutrients() {
+            fetch('/calculate-nutrients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ selected_ingredients: selectedIngredients })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to fetch nutrients data');
+                return response.json();
+            })
+            .then(data => {
+                console.log("Response received:", data); ; // デバッグログ
+                updateNutrientResults(data.nutrient_totals);
+            })
+            .catch(error => console.error("Error in calculateNutrients:", error));
+        }
+
+    
+        // 栄養素を計算
+        function calculateNutrients() {
+            fetch('/calculate-nutrients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ selected_ingredients: selectedIngredients })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to fetch nutrients data');
+                return response.json();
+            })
+            .then(data => {
+                console.log("Response received:", data); // デバッグログ
+                updateNutrientResults(data.nutrient_totals, data.results);
+            })
+            .catch(error => console.error("Error in calculateNutrients:", error));
+        }
+
+        // 栄養素結果の更新（背景色も変更）
+        function updateNutrientResults(nutrientTotals, results) {
+            console.log("Updating nutrient results:", nutrientTotals, results); // デバッグログ
+
+            Object.keys(nutrientTotals).forEach(nutrient => {
+                const totalCell = document.getElementById(`total-${nutrient}`);
+                const adultStatusCell = document.getElementById(`status-adult_dog-${nutrient}`);
+                const puppyStatusCell = document.getElementById(`status-puppy-${nutrient}`);
+                const totalValue = nutrientTotals[nutrient] || 0;
+
+                // 合計値を更新
+                if (totalCell) {
+                    totalCell.textContent = totalValue.toFixed(2);
+                }
+
+                // 成犬用判定を更新
+                if (adultStatusCell) {
+                    const adultResult = results.adult_dog[nutrient];
+                    updateStatusCell(adultStatusCell, adultResult);
+                }
+
+                // 幼犬用判定を更新
+                if (puppyStatusCell) {
+                    const puppyResult = results.puppy[nutrient];
+                    updateStatusCell(puppyStatusCell, puppyResult);
+                }
+    });
+        }
+
+        // 判定セルの内容と背景色を更新
+        function updateStatusCell(cell, result) {
+            if (result === "不足") {
+                cell.innerHTML = '<span class="text-danger">不足</span>';
+                cell.className = "cell-danger"; // 赤背景
+            } else if (result === "過剰") {
+                cell.innerHTML = '<span class="text-warning">過剰</span>';
+                cell.className = "cell-warning"; // 黄背景
+            } else {
+                cell.innerHTML = '<span class="text-success">適合</span>';
+                cell.className = "cell-success"; // 緑背景
+            }
+        }
+
+        // 削除処理の関数
+        function removeIngredient(foodCode) {
+            console.log(`Removing ingredient with food code: ${foodCode}`); // デバッグ用ログ
+
+            // リストから削除
+            selectedIngredients = selectedIngredients.filter(item => String(item.food_code) !== String(foodCode));
+
+            // UIを更新
+            updateSelectedIngredientsUI();
+
+            // 栄養素を再計算
+            calculateNutrients();
+        }
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 初期ロード時にUIを更新
+            updateSelectedIngredientsUI();
+
+            // 初期ロード時に栄養素結果を描画
+            updateNutrientResults(data.nutrient_totals, data.results);
+
+            // 初期ロード時に提案食材を描画
+            updateSuggestionTabs(data.suggestions);
+        });
+
+        function forceReflow() {
+            const list = document.getElementById('editable-selected-ingredients');
+            list.style.display = 'none';
+            list.offsetHeight; // Reflowを強制
+            list.style.display = '';
+        }
+    </script>
+</body>
+</html>
