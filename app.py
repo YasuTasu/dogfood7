@@ -422,11 +422,6 @@ def adjust():
             selected_list = session.get('selected_list', [])
             suggestions = session.get('suggestions', {})  # 提案食材もセッションから取得
 
-            # デバッグログ
-            print("GET /adjust:")
-            print(f"selected_list: {selected_list}")
-            print(f"suggestions: {suggestions}")
-
             # 選択されたリストを整形
             selected_food_codes = [item['food_code'] for item in selected_list]
             ingredients = Ingredient.query.filter(Ingredient.food_code.in_(selected_food_codes)).all()
@@ -495,7 +490,6 @@ def adjust():
                 "aafco_standards": aafco_standards,
             }
 
-            print("Response data prepared for adjust:", response_data)
             return render_template('adjust.html', data=response_data)
 
         except Exception as e:
@@ -505,7 +499,6 @@ def adjust():
     if request.method == 'POST':
         try:
             data = request.json
-            print("Received POST data at /adjust:", data)
             session['selected_list'] = data.get('selected_ingredients', [])
             return jsonify({"message": "Data updated successfully"})
         except Exception as e:
